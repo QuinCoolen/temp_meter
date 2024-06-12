@@ -5,15 +5,18 @@
 const int TEMP_PIN = A1;
 const int BUTTON_PIN_ONE = 8;
 const int BUTTON_PIN_TWO = 9;
+const int PIN_BUZZER = 3;
+
+const int c4 = 261;
+const int a4 = 440;
+const int h4 = 494;
+
 byte prevOneState = HIGH;
 byte prevTwoState = HIGH;
 
-int currentMode = 0;
-float tempLogs[100] = {}; // Assuming maximum 100 entries for simplicity
+float tempLogs[100] = {};
 int tempIndex = 0;
-
-float humiLogs[100] = {}; // Assuming maximum 100 entries for simplicity
-int humiIndex = 0;
+int temperatures[2] = {20, 25};
 
 void setup() {
   Serial.begin(9600);
@@ -22,54 +25,81 @@ void setup() {
   pinMode(BUTTON_PIN_TWO, INPUT_PULLUP);
 }
 
-void toggleMode() {
-  if (currentMode == 1) { 
-    currentMode = 0;
-    Serial.println("Nu meet die de temperatuur");
-  } else {
-    Serial.println("Nu meet die de lucht vochtigheid");
-    currentMode = 1;
-  }
-}
-
 float getValue() {
-  return currentMode == 0 ? DHT11.getTemperature() : DHT11.getHumidity();
+  return DHT11.getTemperature();
 }
 
 void logValue() {
   float value = getValue();
-  if (currentMode == 0) {
-    tempLogs[tempIndex] = value;
-    tempIndex++;
-    if (tempIndex > 100) {
-      tempIndex = 0;
-    }
-  } else {
-    humiLogs[humiIndex] = value;
-    humiIndex++;
-     if (humiIndex > 100) {
-      humiIndex = 0;
-    }
+  tempLogs[tempIndex] = value;
+  tempIndex++;
+  if (tempIndex > 100) {
+    tempIndex = 0;
   }
 }
 
 float getAverageValue() {
-  if (currentMode == 0) {
-    float total = 0;
-    for (int i = 0; i < tempIndex; i++) {
-      total += tempLogs[i];
-    }
-    return total / tempIndex;
-  } else {
-    float total = 0;
-    for (int i = 0; i < humiIndex; i++) {
-      total += humiLogs[i];
-    }
-    return total / humiIndex;
+  float total = 0;
+  for (int i = 0; i < tempIndex; i++) {
+    total += tempLogs[i];
   }
+  return total / tempIndex;
+}
+
+void updateTemperatures() {
+    Serial.println("Enter first temperature:");
+    while (Serial.available() == 0) {}
+    temperatures[0] = Serial.readStringUntil('\n').toInt();
+
+    Serial.println("Enter second temperature:");
+    while (Serial.available() == 0) {} 
+    temperatures[1] = Serial.readStringUntil('\n').toInt();
+    
+    Serial.print("Updated temperatures: ");
+    Serial.print(temperatures[0]);
+    Serial.print(", ");
+    Serial.println(temperatures[1]);
+}
+
+void checkSerial() {
+    if (Serial.available() > 0) {
+        String input = Serial.readStringUntil('\n');
+        input.trim();
+        if (input.equals("temp")) {
+            updateTemperatures();
+        }
+    }
+}
+
+void temperatureAlert(float celcius) {
+    if ((celcius > temperatures[1]))
+    {
+        digitalWrite(PIN_LED_RED, HIGH);
+        tone(PIN_BUZZER, c4);
+        delay(500);
+        digitalWrite(PIN_LED_RED, LOW);
+        delay(500);
+    }
+    else if ((celcius > temperatures[0]) && (celcius <= temperatures[1]))
+    {
+        digitalWrite(PIN_LED_BLUE, HIGH);
+        tone(PIN_BUZZER, a4);
+        delay(500);
+        digitalWrite(PIN_LED_BLUE, LOW);
+        delay(500);
+    }
+    else if ((celcius <= temperatures[0]))
+    {
+        digitalWrite(PIN_LED_GREEN, HIGH);
+        tone(PIN_BUZZER, h4);
+        delay(500);
+        digitalWrite(PIN_LED_GREEN, LOW);
+        delay(500);
+    }
 }
 
 void loop() {
+  checkSerial();
   logValue();
   byte buttonOneState = digitalRead(BUTTON_PIN_ONE);
   byte buttonTwoState = digitalRead(BUTTON_PIN_TWO);
