@@ -2,9 +2,8 @@
 #include "Display.h"
 #include "DHT11.h"
 
-// Defineer de pinnen die gebruikt worden voor de temperatuursensor, knoppen en de buzzer
+// Defineer de pinnen die gebruikt worden voor de temperatuursensor, de tweede knop en de buzzer
 const int TEMP_PIN = A1; // Pin voor de temperatuursensor
-const int BUTTON_PIN_ONE = 8; // Pin voor de eerste knop
 const int BUTTON_PIN_TWO = 9; // Pin voor de tweede knop
 const int PIN_BUZZER = 3; // Pin voor de buzzer
 
@@ -13,8 +12,7 @@ const int c4 = 261; // Toon C4
 const int a4 = 440; // Toon A4
 const int h4 = 494; // Toon H4
 
-// Variabelen om de vorige staten van de knoppen bij te houden
-byte prevOneState = HIGH;
+// Variabele om de vorige staat van de tweede knop bij te houden
 byte prevTwoState = HIGH;
 
 // Array voor het loggen van temperatuurwaarden
@@ -25,18 +23,17 @@ int temperatures[2] = {20, 25}; // Temperatuur drempelwaarden
 // Initialiseer de seriële communicatie en de pinnen voor de knoppen
 void setup() {
   Serial.begin(9600); // Start de seriële communicatie met een baudrate van 9600
-  pinMode(BUTTON_PIN_ONE, INPUT_PULLUP); // Stel de eerste knop in als input met pull-up weerstand
   pinMode(BUTTON_PIN_TWO, INPUT_PULLUP); // Stel de tweede knop in als input met pull-up weerstand
 }
 
 // Functie om de huidige temperatuurwaarde te krijgen van de sensor
-float getValue() {
+float getTempValue() {
   return DHT11.getTemperature(); // Haal de temperatuur op van de DHT11 sensor
 }
 
 // Functie om de huidige temperatuurwaarde te loggen
 void logValue() {
-  float value = getValue(); // Verkrijg de huidige temperatuur
+  float value = getTempValue(); // Verkrijg de huidige temperatuur
   tempLogs[tempIndex] = value; // Sla de temperatuur op in de array
   tempIndex++; // Verhoog de index
   if (tempIndex > 100) { // Als de index groter is dan 100, reset de index naar 0
@@ -107,14 +104,11 @@ void temperatureAlert(float celcius) {
 
 // De hoofdlus van het programma
 void loop() {
+  float celcius = getTempValue(); // Verkrijg de huidige temperatuurwaarde
   checkSerial(); // Controleer op seriële input
   logValue(); // Log de huidige temperatuur
-  byte buttonOneState = digitalRead(BUTTON_PIN_ONE); // Lees de staat van de eerste knop
+
   byte buttonTwoState = digitalRead(BUTTON_PIN_TWO); // Lees de staat van de tweede knop
-  if (buttonOneState == LOW && buttonOneState != prevOneState) { // Als de eerste knop ingedrukt is en de staat is veranderd
-    toggleMode(); // Wissel van modus (bijvoorbeeld Celsius naar Fahrenheit)
-    delay(100); // Wacht 100 milliseconden om "bouncing" te voorkomen
-  }
 
   if (buttonTwoState == LOW && buttonTwoState != prevTwoState) { // Als de tweede knop ingedrukt is en de staat is veranderd
     float average = getAverageValue(); // Bereken de gemiddelde temperatuur
@@ -122,8 +116,8 @@ void loop() {
     Serial.println(average); // Print de gemiddelde temperatuur naar de seriële monitor
     delay(100); // Wacht 100 milliseconden om "bouncing" te voorkomen
   }
-  prevOneState = buttonOneState; // Update de vorige staat van de eerste knop
-  prevTwoState = buttonTwoState; // Update de vorige staat van de tweede knop
 
-  Display.show(getValue()); // Toon de huidige temperatuur op het display
+  prevTwoState = buttonTwoState; // Update de vorige staat van de tweede knop
+  Display.show(getTempValue()); // Toon de huidige temperatuur op het display
+  temperatureAlert(celcius); // Controleer of de temperatuur een waarschuwing moet activeren
 }
